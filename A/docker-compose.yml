@@ -1,0 +1,92 @@
+version: '3.8'
+
+networks:
+  message_broker:
+    name: message_broker
+    driver: bridge
+    
+services:
+  cont_a:
+    container_name: cont_a
+    build: .
+    volumes:
+      - .:/app
+    networks:
+      - message_broker
+    environment:
+      - host=message_broker
+      - port=5672
+      - user=guest
+      - password=guest
+      - send_queue=a
+      - receive_queue=b
+      - container_name=cont_a
+
+    depends_on:
+      - message_broker
+    
+  cont_b:
+    container_name: cont_b
+    build: .
+    volumes:
+      - .:/app
+    networks:
+      - message_broker
+    environment:
+      - host=message_broker
+      - port=5672
+      - user=guest
+      - password=guest
+      - send_queue=b
+      - receive_queue=a
+      - container_name=cont_b
+    depends_on:
+      - message_broker
+  
+  message_broker:
+    container_name: message_broker
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+    networks:
+      - message_broker
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - message_broker_volume:/var/lib/rabbitmq
+
+  db:
+    image: mongo:latest
+    container_name: db
+    ports:
+      - 27018:27017 # sağ docker portu: sol LOCAL portu
+    restart: always
+    volumes:
+      - db_volume:/data/db
+    networks:
+      - message_broker
+
+  referee:
+    container_name: referee
+    build:  
+      context: ../Referee # Dockerfile'in bulunduğu klasör
+      dockerfile: Dockerfile
+    volumes:
+      - ../Referee:/app
+    networks:
+      - message_broker
+    depends_on:
+      - db
+    ports:
+      - "8010:8030" 
+
+volumes:
+  db_volume:
+  message_broker_volume:
+
+
+
+
